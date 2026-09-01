@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_SETTINGS, exportPayload, loadGame, parseImport, saveGame } from "../js/storage.js";
+import { recommendedComposition } from "../js/roles.js";
 import { addPlayer, applyRecommendation, assignRoles, checkVictory, compositionRoles, createGame, eliminatePlayer, launchGame, processDeathQueue } from "../js/game.js";
 import { applyNightResolution, createNight, currentNightStep, resolveNight, validateNightAction } from "../js/night.js";
 import { resolveVote, tallyVotes } from "../js/voting.js";
@@ -26,6 +27,28 @@ test("la composition recommandée distribue exactement un rôle par joueur", () 
   assignRoles(game);
   assert.equal(game.players.filter((player) => player.roleId).length, game.players.length);
   assert.deepEqual(game.players.map((player) => player.roleId).sort(), compositionRoles(game).sort());
+});
+
+test("les paliers recommandés font progresser la meute et les pouvoirs", () => {
+  const expectations = [
+    [5, 1, ["seer"]],
+    [6, 1, ["seer"]],
+    [7, 2, ["seer", "witch"]],
+    [8, 2, ["seer", "witch"]],
+    [9, 2, ["seer", "witch", "hunter"]],
+    [10, 2, ["seer", "witch", "hunter", "cupid"]],
+    [11, 3, ["seer", "witch", "hunter", "cupid"]],
+    [12, 3, ["seer", "witch", "hunter", "cupid"]],
+    [14, 3, ["seer", "witch", "hunter", "cupid", "little-girl"]],
+    [16, 4, ["seer", "witch", "hunter", "cupid", "little-girl"]],
+    [20, 5, ["seer", "witch", "hunter", "cupid", "little-girl"]],
+  ];
+  expectations.forEach(([players, wolves, specials]) => {
+    const recommendation = recommendedComposition(players);
+    assert.equal(recommendation.werewolf, wolves, `${players} joueurs`);
+    assert.deepEqual(recommendation.specials, specials, `${players} joueurs`);
+    assert.ok(wolves + specials.length < players, `${players} joueurs doivent conserver des Villageois`);
+  });
 });
 
 test("la nuit enregistre puis applique une attaque sauvée et un poison", () => {

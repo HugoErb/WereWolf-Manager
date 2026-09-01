@@ -162,7 +162,7 @@ async function performAction(action, element) {
   if (action === "remove-player") { mutate((current) => { current.players = current.players.filter((p) => p.id !== element.dataset.id); syncComposition(current); }); return; }
   if (action === "move-player") { mutate((current) => { const index = current.players.findIndex((p) => p.id === element.dataset.id); const target = index + (element.dataset.direction === "up" ? -1 : 1); if (target >= 0 && target < current.players.length) [current.players[index], current.players[target]] = [current.players[target], current.players[index]]; }); return; }
   if (action === "shuffle-players") { mutate((current) => { current.players = shuffle(current.players); }); return; }
-  if (action === "recommend-roles") { mutate(applyRecommendation); toast("Composition recommandée appliquée. Elle reste entièrement modifiable."); return; }
+  if (action === "recommend-roles") { mutate(applyRecommendation); toast("Composition recommandée appliquée. Elle reste modifiable."); return; }
   if (action === "go-distribution") { navigate("distribution"); return; }
   if (action === "back-setup") { navigate("setup"); return; }
   if (action === "assign-roles") { mutate(assignRoles); return; }

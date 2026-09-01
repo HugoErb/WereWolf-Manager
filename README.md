@@ -88,6 +88,22 @@ Tous les fichiers utilisent des chemins relatifs (`./js/...`, `./styles/...`), c
 
 Les rôles sans action automatisée peuvent être ajoutés uniquement par leur définition de données.
 
+## Logique de composition recommandée
+
+La recommandation introduit les rôles progressivement pour éviter de surcharger ou de suréquiper les petites tables :
+
+- 5–6 joueurs : 1 Loup-Garou et la Voyante ;
+- 7–8 joueurs : 2 Loups-Garous, Voyante et Sorcière ; le format à 7 reste plus volatil ;
+- 9 joueurs : ajout du Chasseur ;
+- 10 joueurs : ajout de Cupidon ;
+- 11 joueurs : passage à 3 Loups-Garous pour compenser les quatre pouvoirs présents ;
+- 12–13 joueurs : maintien de 3 Loups-Garous ;
+- 14–15 joueurs : ajout de la Petite Fille ;
+- 16–19 joueurs : passage à 4 Loups-Garous ;
+- au-delà : environ un Loup-Garou pour quatre participants.
+
+Les formats de moins de 8 joueurs sont signalés comme des adaptations plus volatiles. La Petite Fille est proposée tardivement car sa puissance dépend fortement de l’expérience et du comportement du groupe. Chaque suggestion reste modifiable par le MJ.
+
 ## Tests
 
 ```powershell

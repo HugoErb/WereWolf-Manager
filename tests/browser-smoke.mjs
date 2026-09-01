@@ -92,6 +92,12 @@ await click("new-game");
 await waitFor(`document.querySelector('[data-action="fill-players"]')`);
 await click("fill-players");
 assert.equal(await evaluate(`document.querySelectorAll('[data-player-name]').length`), 8);
+assert.equal(await evaluate(`Number(document.querySelector('[data-role-count="werewolf"]').value)`), 2);
+if (screenshotDir) {
+  await mkdir(screenshotDir, { recursive: true });
+  const shot = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  await writeFile(`${screenshotDir}/werewolf-composition.png`, Buffer.from(shot.data, "base64"));
+}
 await click("go-distribution");
 await waitFor(`document.querySelector('[data-action="assign-roles"]')`);
 await click("assign-roles");
