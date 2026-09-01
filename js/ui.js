@@ -41,7 +41,6 @@ function home(hasSave) {
     <h1 class="font-display text-4xl leading-tight text-white sm:text-5xl">Le village s’endort.<br><span class="text-amberwood">À vous de guider la nuit.</span></h1>
     <p class="mx-auto mt-5 max-w-md text-base leading-relaxed text-stone-300">Le tableau de bord privé du Maître du Jeu, de la préparation jusqu’à la victoire.</p>
     <div class="mx-auto mt-10 grid max-w-sm gap-3">${btn(`${ICONS.plus} Nouvelle partie`, "new-game")} ${hasSave ? btn(`${ICONS.arrow} Reprendre la partie`, "resume-game", "secondary") : ""} ${btn("Importer une partie", "import-game", "ghost")} ${btn("Paramètres", "open-settings", "ghost")}</div>
-    <p class="mt-10 text-xs text-stone-500">Données conservées uniquement sur cet appareil</p>
   </section></main>`;
 }
 
@@ -95,7 +94,7 @@ function distribution(game, selectedRoleId = null) {
 }
 
 function gameHeader(game) {
-  return `<header class="sticky top-0 z-30 border-b border-white/10 bg-forest-950/95 px-4 py-3 backdrop-blur"><div class="mx-auto flex max-w-7xl items-center gap-3"><div class="hidden sm:block">${logo()}</div><button data-action="game-home" class="font-display text-lg font-semibold sm:hidden">Werewolf</button><div class="h-8 w-px bg-white/10"></div><div class="min-w-0 flex-1"><div class="flex items-center gap-2"><p class="truncate text-sm font-semibold text-white">${escapeHtml(game.name)}</p><span class="hidden rounded-full border border-amberwood/20 bg-amberwood/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-200 sm:inline">Espace MJ</span></div><p class="truncate text-xs text-amberwood">${PHASE_LABELS[game.phase]}</p></div><div class="hidden items-center gap-2 md:flex">${btn("Annuler", "undo", "ghost")}</div>${btn(ICONS.menu, "toggle-menu", "ghost", 'aria-label="Ouvrir le menu"')}</div></header>`;
+  return `<header class="sticky top-0 z-30 border-b border-white/10 bg-forest-950/95 px-4 py-3 backdrop-blur"><div class="mx-auto flex max-w-7xl items-center gap-3"><div class="hidden sm:block">${logo()}</div><button data-action="game-home" class="font-display text-lg font-semibold sm:hidden">Werewolf</button><div class="h-8 w-px bg-white/10"></div><div class="min-w-0 flex-1"><p class="truncate text-sm font-semibold text-white">${escapeHtml(game.name)}</p><p class="truncate text-xs text-amberwood">${PHASE_LABELS[game.phase]}</p></div><div class="hidden items-center gap-2 md:flex">${btn("Annuler", "undo", "ghost")}</div>${btn(ICONS.menu, "toggle-menu", "ghost", 'aria-label="Ouvrir le menu"')}</div></header>`;
 }
 
 function stats(game) {
