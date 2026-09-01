@@ -100,10 +100,28 @@ if (screenshotDir) {
 }
 await click("go-distribution");
 await waitFor(`document.querySelector('[data-action="assign-roles"]')`);
+if (screenshotDir) {
+  const shot = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  await writeFile(`${screenshotDir}/werewolf-dnd.png`, Buffer.from(shot.data, "base64"));
+}
+await evaluate(`(() => { window.__dragSource = document.querySelector('[data-drag-role="werewolf"]'); window.__dragZone = document.querySelector('[data-role-dropzone]'); window.__dragTransfer = new DataTransfer(); window.__dragSource.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dragTransfer })); })()`);
+assert.equal(await evaluate(`Boolean(document.querySelector('[data-drag-preview] svg'))`), true);
+assert.equal(await evaluate(`window.__dragSource.classList.contains('opacity-60')`), false);
+assert.equal(await evaluate(`getComputedStyle(window.__dragSource).opacity`), "1");
+assert.equal(await evaluate(`getComputedStyle(document.querySelector('[data-drag-preview]')).opacity`), "1");
+await evaluate(`(() => { window.__dragZone.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: window.__dragTransfer })); window.__dragZone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: window.__dragTransfer })); window.__dragSource.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: window.__dragTransfer })); delete window.__dragSource; delete window.__dragZone; delete window.__dragTransfer; })()`);
+await waitFor(`JSON.parse(localStorage.getItem('werewolf-manager.game.v1')).game.players[0].roleId === 'werewolf'`);
+await click("clear-manual-role");
+await click("select-manual-role");
+await click("assign-selected-role");
+await waitFor(`JSON.parse(localStorage.getItem('werewolf-manager.game.v1')).game.players[0].roleId === 'werewolf'`);
+await click("reset-role-assignments");
+await waitFor(`document.querySelector('[data-action="confirm-modal"]')`);
+await click("confirm-modal");
+await waitFor(`JSON.parse(localStorage.getItem('werewolf-manager.game.v1')).game.players.every(player => !player.roleId)`);
 await click("assign-roles");
 await waitFor(`document.querySelector('[data-action="launch-game"]')`);
-assert.equal(await evaluate(`document.body.innerText.includes('Attribution prête')`), true);
-assert.equal(await evaluate(`document.body.innerText.toLocaleLowerCase('fr').includes('visible par le mj')`), true);
+assert.equal(await evaluate(`document.body.innerText.includes('Attribution prête')`), false);
 if (screenshotDir) {
   await mkdir(screenshotDir, { recursive: true });
   const shot = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });

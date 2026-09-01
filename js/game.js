@@ -23,6 +23,7 @@ export function addPlayer(game, name) {
   const cleanName = name.trim();
   if (!cleanName) throw new Error("Saisissez un nom de joueur.");
   if (game.players.some((player) => player.name.toLocaleLowerCase("fr") === cleanName.toLocaleLowerCase("fr"))) throw new Error("Ce nom est déjà utilisé.");
+  game.players.forEach((player) => { player.roleId = null; player.team = null; });
   game.players.push({ id: uid("player"), name: cleanName, roleId: null, team: null, alive: true, deathCause: null, deathRound: null, effects: [], notes: "", history: [] });
   syncComposition(game);
 }
@@ -37,6 +38,7 @@ export function applyRecommendation(game) {
   const recommendation = recommendedComposition(game.players.length);
   game.composition.werewolf = recommendation.werewolf;
   game.composition.specials = recommendation.specials;
+  game.players.forEach((player) => { player.roleId = null; player.team = null; });
   syncComposition(game);
 }
 

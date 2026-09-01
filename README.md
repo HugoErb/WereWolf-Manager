@@ -8,7 +8,7 @@ L’application fonctionne entièrement dans le navigateur, sans compte, serveur
 
 - création du village et gestion réordonnable des joueurs ;
 - composition recommandée ou personnalisée des rôles ;
-- attribution aléatoire Fisher–Yates ou attribution manuelle ;
+- attribution aléatoire Fisher–Yates ou attribution manuelle par glisser-déposer, avec alternative tactile ;
 - récapitulatif privé de l’attribution pour le MJ ;
 - assistant de nuit ordonné par les données des rôles ;
 - Loups-Garous, Voyante, Sorcière, Cupidon, Chasseur et amoureux ;

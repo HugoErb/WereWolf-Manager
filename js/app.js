@@ -19,7 +19,9 @@ const importInput = document.querySelector("#import-input");
 const state = {
   view: "home", panel: "game", game: null, settings: loadSettings(), hasSave: hasSavedGame(),
   undo: loadUndo(), previousView: "home", modalResolver: null, modalPersistent: false, lastFocused: null,
+  manualRoleSelection: null,
 };
+let dragPreviewElement = null;
 
 function renderApp() {
   if (state.game?.status === "active") state.game._victory = checkVictory(state.game);
@@ -114,6 +116,21 @@ function handleDeathQueue() {
   }
 }
 
+function assignManualRole(playerId, roleId) {
+  if (!roleId) { toast("Sélectionnez d’abord un rôle.", "error"); return; }
+  mutate((game) => {
+    const player = game.players.find((item) => item.id === playerId);
+    if (!player) throw new Error("Joueur introuvable.");
+    const allowed = compositionRoles(game).filter((id) => id === roleId).length;
+    const usedByOthers = game.players.filter((item) => item.id !== playerId && item.roleId === roleId).length;
+    if (!allowed || usedByOthers >= allowed) throw new Error("Tous les exemplaires de ce rôle sont déjà attribués.");
+    player.roleId = roleId;
+    player.team = getRole(roleId).team;
+    const remaining = allowed - game.players.filter((item) => item.roleId === roleId).length;
+    if (remaining === 0) state.manualRoleSelection = null;
+  }, { undo: false });
+}
+
 function updateTimerState(game) {
   if (!game.timer.running || !game.timer.endsAt) return;
   game.timer.remaining = Math.max(0, Math.ceil((game.timer.endsAt - Date.now()) / 1000));
@@ -159,24 +176,19 @@ async function performAction(action, element) {
     if (game.players.length) { toast("Supprimez d’abord les joueurs existants pour générer des noms.", "error"); return; }
     mutate((current) => { for (let i = 1; i <= 8; i += 1) addPlayer(current, `Joueur ${i}`); applyRecommendation(current); }); return;
   }
-  if (action === "remove-player") { mutate((current) => { current.players = current.players.filter((p) => p.id !== element.dataset.id); syncComposition(current); }); return; }
+  if (action === "remove-player") { mutate((current) => { current.players = current.players.filter((p) => p.id !== element.dataset.id); current.players.forEach((player) => { player.roleId = null; player.team = null; }); syncComposition(current); }); return; }
   if (action === "move-player") { mutate((current) => { const index = current.players.findIndex((p) => p.id === element.dataset.id); const target = index + (element.dataset.direction === "up" ? -1 : 1); if (target >= 0 && target < current.players.length) [current.players[index], current.players[target]] = [current.players[target], current.players[index]]; }); return; }
   if (action === "shuffle-players") { mutate((current) => { current.players = shuffle(current.players); }); return; }
   if (action === "recommend-roles") { mutate(applyRecommendation); toast("Composition recommandée appliquée. Elle reste modifiable."); return; }
-  if (action === "go-distribution") { navigate("distribution"); return; }
-  if (action === "back-setup") { navigate("setup"); return; }
-  if (action === "assign-roles") { mutate(assignRoles); return; }
-  if (action === "assign-manual") {
-    const selections = [...document.querySelectorAll("[data-manual-role]")].map((select) => ({ playerId: select.dataset.manualRole, roleId: select.value }));
-    if (selections.some((item) => !item.roleId)) { toast("Attribuez un rôle à chaque joueur.", "error"); return; }
-    const expected = compositionRoles(game).sort().join("|");
-    const selected = selections.map((item) => item.roleId).sort().join("|");
-    if (selected !== expected) { toast("L’attribution manuelle doit utiliser exactement la composition configurée.", "error"); return; }
-    mutate((current) => { selections.forEach(({ playerId, roleId }) => { const player = current.players.find((p) => p.id === playerId); player.roleId = roleId; player.team = getRole(roleId).team; }); }); return;
-  }
+  if (action === "go-distribution") { state.manualRoleSelection = null; navigate("distribution"); return; }
+  if (action === "back-setup") { state.manualRoleSelection = null; navigate("setup"); return; }
+  if (action === "assign-roles") { state.manualRoleSelection = null; mutate(assignRoles); return; }
+  if (action === "select-manual-role") { state.manualRoleSelection = state.manualRoleSelection === element.dataset.roleId ? null : element.dataset.roleId; renderApp(); return; }
+  if (action === "assign-selected-role") { assignManualRole(element.dataset.playerId, state.manualRoleSelection); return; }
+  if (action === "clear-manual-role") { const playerId = element.dataset.id; mutate((current) => { const player = current.players.find((item) => item.id === playerId); if (player) { player.roleId = null; player.team = null; } state.manualRoleSelection = null; }, { undo: false }); return; }
+  if (action === "reset-role-assignments") { if (await confirmAction("Réinitialiser les rôles", "Toutes les attributions actuelles seront effacées.", "Réinitialiser") === false) return; mutate((current) => { current.players.forEach((player) => { player.roleId = null; player.team = null; }); state.manualRoleSelection = null; }, { undo: false }); return; }
   if (action === "reassign-roles") {
-    if (await confirmAction("Relancer l’attribution", "Le tirage actuel sera remplacé.", "Relancer") === false) return;
-    mutate(assignRoles); return;
+    state.manualRoleSelection = null; mutate(assignRoles); return;
   }
   if (action === "launch-game") { mutate(launchGame); if (state.game.status === "active") navigate("game"); return; }
   if (action.startsWith("panel-")) { state.panel = action.slice(6); renderApp(); return; }
@@ -247,10 +259,77 @@ document.addEventListener("click", (event) => {
   performAction(trigger.dataset.action, trigger);
 });
 
+document.addEventListener("dragstart", (event) => {
+  const role = event.target.closest("[data-drag-role]");
+  if (!role || role.disabled) { event.preventDefault(); return; }
+  event.dataTransfer.effectAllowed = "copy";
+  event.dataTransfer.setData("text/plain", role.dataset.dragRole);
+  role.classList.add("ring-2", "ring-amberwood/60");
+  dragPreviewElement?.remove();
+  dragPreviewElement = document.createElement("div");
+  dragPreviewElement.dataset.dragPreview = "true";
+  dragPreviewElement.className = "pointer-events-none fixed z-[100] flex items-center gap-2 rounded-xl border border-amberwood/50 bg-forest-800 px-3 py-2 text-sm font-semibold text-parchment opacity-100 shadow-2xl";
+  dragPreviewElement.style.left = `${event.clientX + 18}px`;
+  dragPreviewElement.style.top = `${event.clientY + 18}px`;
+  const roleIcon = role.querySelector("span.grid")?.cloneNode(true);
+  if (roleIcon) dragPreviewElement.append(roleIcon);
+  const roleName = document.createElement("span");
+  roleName.textContent = getRole(role.dataset.dragRole).name;
+  dragPreviewElement.append(roleName);
+  document.body.append(dragPreviewElement);
+  const transparentDragImage = document.createElement("canvas");
+  transparentDragImage.width = 1;
+  transparentDragImage.height = 1;
+  event.dataTransfer.setDragImage(transparentDragImage, 0, 0);
+});
+
+document.addEventListener("drag", (event) => {
+  if (!dragPreviewElement || (!event.clientX && !event.clientY)) return;
+  dragPreviewElement.style.left = `${event.clientX + 18}px`;
+  dragPreviewElement.style.top = `${event.clientY + 18}px`;
+});
+
+document.addEventListener("dragend", (event) => {
+  event.target.closest("[data-drag-role]")?.classList.remove("ring-2", "ring-amberwood/60");
+  dragPreviewElement?.remove();
+  dragPreviewElement = null;
+  document.querySelectorAll("[data-role-dropzone]").forEach((zone) => zone.classList.remove("border-amberwood", "bg-amberwood/10"));
+});
+
+document.addEventListener("dragover", (event) => {
+  const zone = event.target.closest("[data-role-dropzone]");
+  if (!zone) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+  if (dragPreviewElement) {
+    dragPreviewElement.style.left = `${event.clientX + 18}px`;
+    dragPreviewElement.style.top = `${event.clientY + 18}px`;
+  }
+  zone.classList.add("border-amberwood", "bg-amberwood/10");
+});
+
+document.addEventListener("dragleave", (event) => {
+  const zone = event.target.closest("[data-role-dropzone]");
+  if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove("border-amberwood", "bg-amberwood/10");
+});
+
+document.addEventListener("drop", (event) => {
+  const zone = event.target.closest("[data-role-dropzone]");
+  if (!zone) return;
+  event.preventDefault();
+  zone.classList.remove("border-amberwood", "bg-amberwood/10");
+  assignManualRole(zone.dataset.playerId, event.dataTransfer.getData("text/plain"));
+});
+
+document.addEventListener("keydown", (event) => {
+  const zone = event.target.closest?.("[data-role-dropzone]");
+  if (zone && ["Enter", " "].includes(event.key)) { event.preventDefault(); zone.click(); }
+});
+
 document.addEventListener("change", (event) => {
   const target = event.target;
-  if (target.dataset.roleCount) mutate((game) => { game.composition.werewolf = Math.max(0, Number(target.value) || 0); syncComposition(game); }, { undo: false });
-  if (target.dataset.specialRole) mutate((game) => { const id = target.dataset.specialRole; game.composition.specials = target.checked ? [...new Set([...game.composition.specials, id])] : game.composition.specials.filter((roleId) => roleId !== id); syncComposition(game); }, { undo: false });
+  if (target.dataset.roleCount) mutate((game) => { game.composition.werewolf = Math.max(0, Number(target.value) || 0); game.players.forEach((player) => { player.roleId = null; player.team = null; }); syncComposition(game); }, { undo: false });
+  if (target.dataset.specialRole) mutate((game) => { const id = target.dataset.specialRole; game.composition.specials = target.checked ? [...new Set([...game.composition.specials, id])] : game.composition.specials.filter((roleId) => roleId !== id); game.players.forEach((player) => { player.roleId = null; player.team = null; }); syncComposition(game); }, { undo: false });
   if (target.dataset.playerName) mutate((game) => { const player = game.players.find((p) => p.id === target.dataset.playerName); if (target.value.trim()) player.name = target.value.trim(); }, { undo: false });
   if (target.dataset.change === "game-name") mutate((game) => { game.name = target.value.trim() || "Nouvelle partie"; }, { undo: false });
   if (target.dataset.change === "general-notes") mutate((game) => { game.generalNotes = target.value; }, { undo: false });
