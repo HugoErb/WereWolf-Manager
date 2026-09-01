@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_SETTINGS, exportPayload, loadGame, parseImport, saveGame } from "../js/storage.js";
-import { addPlayer, applyRecommendation, assignRoles, checkVictory, compositionRoles, createGame, eliminatePlayer, launchGame, processDeathQueue, publicGame } from "../js/game.js";
+import { addPlayer, applyRecommendation, assignRoles, checkVictory, compositionRoles, createGame, eliminatePlayer, launchGame, processDeathQueue } from "../js/game.js";
 import { applyNightResolution, createNight, currentNightStep, resolveNight, validateNightAction } from "../js/night.js";
 import { resolveVote, tallyVotes } from "../js/voting.js";
 
@@ -84,17 +84,6 @@ test("la sauvegarde versionnée se recharge et rejette un import invalide", () =
   assert.equal(parseImport(JSON.stringify(exportPayload(game))).id, game.id);
   assert.throws(() => parseImport("pas du json"), /JSON valide/);
   assert.throws(() => parseImport(JSON.stringify({ version: 99, game })), /incompatible/);
-});
-
-test("la vue publique filtre rôles, équipes, notes et événements secrets", () => {
-  const game = gameWithPlayers(5);
-  game.players.forEach((player, index) => { player.roleId = index === 0 ? "werewolf" : "villager"; player.team = index === 0 ? "wolves" : "village"; player.notes = "secret"; });
-  game.history.push({ id: "secret", visibility: "gm", message: "Cible secrète" }, { id: "public", visibility: "public", message: "Le village se réveille" });
-  const view = publicGame(game);
-  assert.equal(view.players[0].roleId, undefined);
-  assert.equal(view.players[0].team, undefined);
-  assert.equal(view.players[0].notes, undefined);
-  assert.deepEqual(view.history.map((event) => event.id), ["public"]);
 });
 
 test("un couple mixte seul survivant déclenche la victoire des Amoureux", () => {

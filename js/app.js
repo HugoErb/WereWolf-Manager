@@ -172,22 +172,17 @@ async function performAction(action, element) {
     const expected = compositionRoles(game).sort().join("|");
     const selected = selections.map((item) => item.roleId).sort().join("|");
     if (selected !== expected) { toast("L’attribution manuelle doit utiliser exactement la composition configurée.", "error"); return; }
-    mutate((current) => { selections.forEach(({ playerId, roleId }) => { const player = current.players.find((p) => p.id === playerId); player.roleId = roleId; player.team = getRole(roleId).team; }); current.distributionIndex = 0; current.distributionRevealed = false; }); return;
+    mutate((current) => { selections.forEach(({ playerId, roleId }) => { const player = current.players.find((p) => p.id === playerId); player.roleId = roleId; player.team = getRole(roleId).team; }); }); return;
   }
   if (action === "reassign-roles") {
     if (await confirmAction("Relancer l’attribution", "Le tirage actuel sera remplacé.", "Relancer") === false) return;
     mutate(assignRoles); return;
   }
-  if (action === "reveal-role") { mutate((current) => { current.distributionRevealed = true; }, { undo: false }); return; }
-  if (action === "hide-next-role") { mutate((current) => { current.distributionRevealed = false; current.distributionIndex += 1; }, { undo: false }); return; }
-  if (action === "skip-distribution") { mutate((current) => { current.distributionIndex = current.players.length; current.distributionRevealed = false; }, { undo: false }); return; }
   if (action === "launch-game") { mutate(launchGame); if (state.game.status === "active") navigate("game"); return; }
   if (action.startsWith("panel-")) { state.panel = action.slice(6); renderApp(); return; }
   if (action === "game-home") { state.panel = "game"; renderApp(); return; }
   if (action === "toggle-menu") { showModal("Menu de la partie", menuModal(game)); return; }
   if (action === "player-menu") { showModal("Gérer un joueur", playerModal(game.players.find((p) => p.id === element.dataset.id))); return; }
-  if (action === "public-view") { closeModal(); navigate("public"); return; }
-  if (action === "close-public") { navigate("game"); return; }
   if (action === "undo") {
     closeModal();
     const snapshot = state.undo.pop();
@@ -213,7 +208,7 @@ async function performAction(action, element) {
   if (action === "reset-timer") { mutate((current) => { current.timer.running = false; current.timer.endsAt = null; current.timer.remaining = current.timer.duration; }, { undo: false }); return; }
   if (action === "dismiss-victory") { mutate((current) => { current.victoryDismissed = true; }, { undo: false }); return; }
   if (action === "end-game") { const victory = checkVictory(game); if (!victory) return; if (await confirmAction("Terminer la partie", `${victory.label}. Cette action ouvre le récapitulatif final.`, "Terminer") === false) return; mutate((current) => endGame(current, victory)); navigate("summary"); return; }
-  if (action === "export-game") { closeModal(); const name = (game.villageName || game.name || "partie").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); downloadJson(exportPayload(game), `werewolf-${name || "partie"}.json`); toast("Partie exportée."); return; }
+  if (action === "export-game") { closeModal(); const name = (game.name || "partie").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); downloadJson(exportPayload(game), `werewolf-${name || "partie"}.json`); toast("Partie exportée."); return; }
   if (action === "delete-save") { if (await confirmAction("Supprimer la sauvegarde", "La partie locale sera définitivement supprimée de cet appareil.", "Supprimer") === false) return; deleteGame(); state.game = null; state.undo = []; state.hasSave = false; closeModal(); navigate("home"); return; }
   if (action === "close-modal") { closeModal(false); return; }
   if (action === "confirm-modal") { closeModal(true); return; }
@@ -258,7 +253,6 @@ document.addEventListener("change", (event) => {
   if (target.dataset.specialRole) mutate((game) => { const id = target.dataset.specialRole; game.composition.specials = target.checked ? [...new Set([...game.composition.specials, id])] : game.composition.specials.filter((roleId) => roleId !== id); syncComposition(game); }, { undo: false });
   if (target.dataset.playerName) mutate((game) => { const player = game.players.find((p) => p.id === target.dataset.playerName); if (target.value.trim()) player.name = target.value.trim(); }, { undo: false });
   if (target.dataset.change === "game-name") mutate((game) => { game.name = target.value.trim() || "Nouvelle partie"; }, { undo: false });
-  if (target.dataset.change === "village-name") mutate((game) => { game.villageName = target.value.trim(); }, { undo: false });
   if (target.dataset.change === "general-notes") mutate((game) => { game.generalNotes = target.value; }, { undo: false });
   if (target.dataset.playerNotes) mutate((game) => { game.players.find((p) => p.id === target.dataset.playerNotes).notes = target.value; }, { undo: false });
   if (target.dataset.ballot) mutate((game) => { game.vote.ballots[target.dataset.ballot] = target.value || null; }, { undo: false });

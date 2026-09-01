@@ -7,15 +7,15 @@ export const PHASE_LABELS = {
   wake: "Réveil du village", discussion: "Discussion", vote: "Vote", resolution: "Résolution du vote", ended: "Partie terminée",
 };
 
-export function createGame(settings, name = "Nouvelle partie", villageName = "") {
+export function createGame(settings, name = "Nouvelle partie") {
   const now = new Date().toISOString();
   return {
-    id: uid("game"), version: 1, name, villageName, status: "setup", phase: "preparation", day: 0, night: 0,
+    id: uid("game"), version: 1, name, status: "setup", phase: "preparation", day: 0, night: 0,
     players: [], composition: { werewolf: 0, villager: 0, specials: [] }, settings: { ...settings }, history: [],
     generalNotes: "", relationships: [], pendingNight: null, pendingDeaths: [], wakeSummary: null,
     vote: { mode: "simple", ballots: {}, selected: null, resolved: false },
     timer: { duration: settings.timerDuration, remaining: settings.timerDuration, running: false, endsAt: null },
-    winner: null, victoryDismissed: false, distributionIndex: 0, distributionRevealed: false, createdAt: now, updatedAt: now,
+    winner: null, victoryDismissed: false, createdAt: now, updatedAt: now,
   };
 }
 
@@ -56,8 +56,6 @@ export function assignRoles(game) {
     game.players[index].team = getRole(roleId).team;
     game.players[index].alive = true;
   });
-  game.distributionIndex = 0;
-  game.distributionRevealed = false;
 }
 
 export function logEvent(game, type, message, visibility = "gm") {
@@ -70,7 +68,7 @@ export function launchGame(game) {
   game.phase = "night";
   game.night = 1;
   game.day = 0;
-  logEvent(game, "game-start", `La partie « ${game.name} » commence.`, "public");
+  logEvent(game, "game-start", `La partie « ${game.name} » commence.`, "announcement");
 }
 
 export function setPhase(game, phase) {
@@ -84,7 +82,7 @@ export function setPhase(game, phase) {
   }
   if (phase === "wake") game.day = Math.max(game.day + 1, game.night);
   if (phase === "vote") game.vote = { mode: game.vote?.mode || "simple", ballots: {}, selected: null, resolved: false };
-  logEvent(game, "phase", `Phase : ${PHASE_LABELS[phase]}.`, "public");
+  logEvent(game, "phase", `Phase : ${PHASE_LABELS[phase]}.`, "announcement");
 }
 
 export function nextPhase(game) {
@@ -114,7 +112,7 @@ export function eliminatePlayer(game, playerId, cause, options = {}) {
   player.deathCause = cause;
   player.deathRound = game.day || game.night;
   player.history.push({ type: "death", cause, day: game.day, night: game.night, phase: game.phase });
-  logEvent(game, "death", `${player.name} meurt (${cause}).`, options.visibility || "public");
+  logEvent(game, "death", `${player.name} meurt (${cause}).`, options.visibility || "announcement");
   const consequences = [];
   if (player.roleId === "hunter" && !options.skipTriggers) consequences.push({ type: "hunter", playerId });
   const relationship = game.relationships.find((link) => link.type === "lovers" && link.playerIds.includes(playerId));
@@ -156,13 +154,5 @@ export function checkVictory(game) {
 
 export function endGame(game, winner) {
   game.status = "ended"; game.phase = "ended"; game.winner = winner;
-  logEvent(game, "game-end", `${winner.label}. ${winner.reason}`, "public");
-}
-
-export function publicGame(game) {
-  return {
-    villageName: game.villageName, name: game.name, phase: game.phase, day: game.day, night: game.night,
-    players: game.players.map(({ id, name, alive, deathCause }) => ({ id, name, alive, deathCause })),
-    history: game.history.filter((event) => event.visibility === "public"), timer: game.timer, status: game.status, winner: game.winner,
-  };
+  logEvent(game, "game-end", `${winner.label}. ${winner.reason}`, "announcement");
 }

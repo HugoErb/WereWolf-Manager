@@ -14,7 +14,7 @@ export function resolveVote(game, selectedId) {
   if (game.vote.mode === "count") {
     const result = tallyVotes(game);
     if (!result.leaders.includes(selectedId)) throw new Error("La personne choisie doit faire partie des joueurs en tête.");
-    logEvent(game, "vote-tally", `${player.name} reçoit ${result.counts[selectedId]} voix.`, "public");
+    logEvent(game, "vote-tally", `${player.name} reçoit ${result.counts[selectedId]} voix.`, "announcement");
   }
   eliminatePlayer(game, selectedId, "vote du village");
   game.vote.selected = selectedId; game.vote.resolved = true;

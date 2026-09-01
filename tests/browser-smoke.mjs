@@ -95,12 +95,14 @@ assert.equal(await evaluate(`document.querySelectorAll('[data-player-name]').len
 await click("go-distribution");
 await waitFor(`document.querySelector('[data-action="assign-roles"]')`);
 await click("assign-roles");
-await waitFor(`document.querySelector('[data-action="reveal-role"]')`);
-await click("reveal-role");
-assert.equal(await evaluate(`document.body.innerText.toLocaleLowerCase('fr').includes('votre rôle')`), true);
-await click("hide-next-role");
-await waitFor(`document.querySelector('[data-action="skip-distribution"]')`);
-await click("skip-distribution");
+await waitFor(`document.querySelector('[data-action="launch-game"]')`);
+assert.equal(await evaluate(`document.body.innerText.includes('Attribution prête')`), true);
+assert.equal(await evaluate(`document.body.innerText.toLocaleLowerCase('fr').includes('visible par le mj')`), true);
+if (screenshotDir) {
+  await mkdir(screenshotDir, { recursive: true });
+  const shot = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  await writeFile(`${screenshotDir}/werewolf-attribution-mj.png`, Buffer.from(shot.data, "base64"));
+}
 await click("launch-game");
 await waitFor(`document.querySelector('[data-action="start-night"]')`);
 await click("start-night");
@@ -126,10 +128,7 @@ if (screenshotDir) {
   await writeFile(`${screenshotDir}/werewolf-desktop.png`, Buffer.from(shot.data, "base64"));
 }
 
-await click("public-view");
-await waitFor(`document.body.innerText.toLocaleLowerCase('fr').includes('vue publique')`);
-const publicText = await evaluate(`document.querySelector('main').innerText`);
-assert.doesNotMatch(publicText, /Voyante|Sorcière|Chasseur|Villageois|Camp des|notes/i);
+assert.equal(await evaluate(`Boolean(document.querySelector('[data-action="public-view"]'))`), false);
 
 await call("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await delay(150);
@@ -150,4 +149,4 @@ assert.equal(await evaluate(`JSON.parse(localStorage.getItem('werewolf-manager.g
 assert.deepEqual(browserErrors, [], `Erreurs navigateur : ${browserErrors.join(" | ")}`);
 
 socket.close();
-console.log("Browser smoke test: parcours complet, reload, vue publique et mobile validés.");
+console.log("Browser smoke test: parcours MJ complet, deux nuits, reload et mobile validés.");

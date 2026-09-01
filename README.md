@@ -1,6 +1,6 @@
 # Werewolf Manager
 
-Werewolf Manager est une application web one-page destinée au Maître du Jeu d’une partie de Loup-Garou. Elle guide la préparation, la distribution secrète, les nuits, les votes et les éliminations tout en conservant un journal complet de la partie.
+Werewolf Manager est une application web one-page privée destinée au Maître du Jeu d’une partie de Loup-Garou. Elle centralise la préparation, l’attribution des rôles, les nuits, les votes et les éliminations dans un tableau de bord complet.
 
 L’application fonctionne entièrement dans le navigateur, sans compte, serveur, base de données ni étape de compilation.
 
@@ -9,15 +9,14 @@ L’application fonctionne entièrement dans le navigateur, sans compte, serveur
 - création du village et gestion réordonnable des joueurs ;
 - composition recommandée ou personnalisée des rôles ;
 - attribution aléatoire Fisher–Yates ou attribution manuelle ;
-- distribution secrète sur téléphone ou tablette ;
+- récapitulatif privé de l’attribution pour le MJ ;
 - assistant de nuit ordonné par les données des rôles ;
 - Loups-Garous, Voyante, Sorcière, Cupidon, Chasseur et amoureux ;
 - résolution différée des actions nocturnes ;
 - vote simple ou comptage individuel avec détection des égalités ;
-- morts en cascade, journal MJ et journal public filtré ;
+- morts en cascade et journal complet du MJ ;
 - notes générales et notes par joueur ;
 - chronomètre facultatif ;
-- vue publique sans rôles ni informations secrètes ;
 - détection des victoires du Village et des Loups-Garous ;
 - annulation des dernières actions importantes ;
 - sauvegarde automatique, import et export JSON versionné.
