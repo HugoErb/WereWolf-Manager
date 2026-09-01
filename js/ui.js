@@ -48,6 +48,7 @@ function home(hasSave) {
 function setup(game) {
   const count = game.players.length;
   const rolesCount = game.composition.werewolf + game.composition.villager + game.composition.specials.length;
+  const distinctRoleCount = Number(game.composition.werewolf > 0) + Number(game.composition.villager > 0) + game.composition.specials.length;
   const werewolfRole = getRole("werewolf");
   const villagerRole = getRole("villager");
   const specialVillageRoles = ROLES.filter((role) => role.team === "village" && role.id !== "villager");
@@ -63,7 +64,7 @@ function setup(game) {
         ${count > 1 ? `<div class="mt-4">${btn("Mélanger l’ordre", "shuffle-players", "ghost")}</div>` : ""}
       </section>
       <section class="${card} p-5 sm:p-6"><div class="mb-5 flex items-start justify-between gap-3"><div><h2 class="text-lg font-semibold text-white">2. Composition</h2><p class="text-sm text-stone-400">Suggestion modifiable librement</p></div>${btn("Appliquer la recommandation", "recommend-roles", "secondary")}</div>
-        <div class="mb-5 grid grid-cols-2 gap-3"><div class="rounded-xl bg-black/20 p-4"><p class="text-xs uppercase tracking-wider text-stone-500">Joueurs</p><p class="mt-1 text-2xl font-semibold">${count}</p></div><div class="rounded-xl bg-black/20 p-4"><p class="text-xs uppercase tracking-wider text-stone-500">Rôles</p><p class="mt-1 text-2xl font-semibold ${rolesCount === count ? "text-[#bbd2b2]" : "text-amber-300"}">${rolesCount}</p></div></div>
+        <div class="mb-5 grid grid-cols-2 gap-3"><div class="rounded-xl bg-black/20 p-4"><p class="text-xs uppercase tracking-wider text-stone-500">Joueurs</p><p class="mt-1 text-2xl font-semibold">${count}</p></div><div class="rounded-xl bg-black/20 p-4"><p class="text-xs uppercase tracking-wider text-stone-500">Rôles différents</p><p class="mt-1 text-2xl font-semibold text-[#bbd2b2]">${distinctRoleCount}</p></div></div>
         <div class="space-y-2">
           ${campSeparator("Camp des Loups", "wolf")}
           <div class="flex items-center gap-3 rounded-xl border border-wolf/40 bg-wolf/10 p-3"><span class="text-red-300">${werewolfRole.icon}</span><div class="min-w-0 flex-1"><p class="font-medium">${werewolfRole.name}</p><p class="text-xs text-stone-500">Se réveillent ensemble pendant la nuit</p></div><input type="number" min="0" max="${count}" data-role-count="werewolf" value="${game.composition.werewolf}" aria-label="Nombre de Loups-Garous" class="${field} !w-20 text-center"></div>
