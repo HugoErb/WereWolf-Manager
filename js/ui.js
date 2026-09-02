@@ -169,7 +169,7 @@ function dashboard(game, panel = "game") {
 
 function bottomNav(active) {
   const items = [["game", "Partie", ICONS.moon], ["players", "Joueurs", ICONS.users], ["history", "Historique", ICONS.clock], ["notes", "Notes", ICONS.note]];
-  return `<nav aria-label="Navigation de partie" class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-forest-950/95 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur"><div class="mx-auto grid max-w-xl grid-cols-4">${items.map(([id, text, svg]) => `<button data-action="panel-${id}" class="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] ${active === id ? "bg-amberwood/10 text-amberwood" : "text-stone-400 hover:text-white"}">${svg}${text}</button>`).join("")}</div></nav>`;
+  return `<nav aria-label="Navigation de partie" class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-forest-950/95 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur"><div class="mx-auto grid max-w-xl grid-cols-4 lg:grid-cols-3">${items.map(([id, text, svg]) => `<button data-action="panel-${id}" class="${id === "players" ? "flex lg:hidden" : "flex"} min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] ${active === id ? "bg-amberwood/10 text-amberwood" : "text-stone-400 hover:text-white"}">${svg}${text}</button>`).join("")}</div></nav>`;
 }
 
 function historyPanel(game) {
