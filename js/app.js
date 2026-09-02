@@ -10,7 +10,7 @@ import {
 } from "./game.js";
 import { applyNightResolution, createNight, currentNightStep, resolveNight, validateNightAction } from "./night.js";
 import { resolveVote } from "./voting.js";
-import { ICONS, menuModal, playerModal, render } from "./ui.js";
+import { ICONS, menuModal, mjScript, playerModal, render } from "./ui.js";
 
 const app = document.querySelector("#app");
 const modalRoot = document.querySelector("#modal-root");
@@ -112,7 +112,7 @@ function handleDeathQueue() {
   if (next.type === "hunter" && !modalRoot.innerHTML) {
     const hunter = state.game.players.find((player) => player.id === next.playerId);
     const targets = state.game.players.filter((player) => player.alive);
-    showModal("Dernier tir du Chasseur", `<p class="text-stone-300">${escapeHtml(hunter.name)} doit désigner une cible avant de quitter le village.</p><label for="hunter-target" class="mb-1.5 mt-5 block text-sm font-medium text-stone-300">Cible</label><select id="hunter-target" class="min-h-11 w-full rounded-xl border border-white/15 bg-black/20 px-3.5 py-2.5"><option value="">Choisir un joueur</option>${targets.map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("")}</select><button data-action="hunter-shot" class="mt-5 min-h-11 w-full rounded-xl bg-wolf px-4 font-semibold text-white">Valider le tir</button>`, { persistent: true });
+    showModal("Dernier tir du Chasseur", `${mjScript([{ variants: ["Chasseur, dans un dernier souffle, tu peux encore faire feu. Désigne le joueur que tu souhaites emporter avec toi.", "Avant de quitter ce monde, le Chasseur rassemble ses dernières forces et saisit son arme. Chasseur, choisis celui qui tombera sous ton ultime tir."] }, { action: `Attendez que ${escapeHtml(hunter.name)} désigne sa cible, puis sélectionnez-la ci-dessous.` }], state.game.day + state.game.night - 2)}<label for="hunter-target" class="mb-1.5 mt-5 block text-sm font-medium text-stone-300">Cible désignée</label><select id="hunter-target" class="min-h-11 w-full rounded-xl border border-white/15 bg-black/20 px-3.5 py-2.5"><option value="">Choisir un joueur</option>${targets.map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("")}</select><button data-action="hunter-shot" class="mt-5 min-h-11 w-full rounded-xl bg-wolf px-4 font-semibold text-white">Appliquer le dernier tir</button>`, { persistent: true });
   }
 }
 
@@ -150,6 +150,13 @@ function tickTimer(save = true) {
 }
 setInterval(() => tickTimer(), 1000);
 
+function resolveCompletedNight(game) {
+  if (game?.phase !== "night" || !game.pendingNight || currentNightStep(game)) return false;
+  resolveNight(game);
+  setPhase(game, "night-resolution");
+  return true;
+}
+
 function openSettings() {
   state.previousView = state.view;
   navigate("settings");
@@ -165,6 +172,7 @@ async function performAction(action, element) {
     const saved = loadGame();
     if (!saved) { toast("La sauvegarde est absente ou corrompue.", "error"); state.hasSave = false; renderApp(); return; }
     state.game = saved; state.settings = { ...state.settings, ...saved.settings };
+    if (resolveCompletedNight(state.game)) persist();
     navigate(saved.status === "setup" ? (saved.players.every((p) => p.roleId) ? "distribution" : "setup") : saved.status === "ended" ? "summary" : "game"); return;
   }
   if (action === "go-home") { navigate("home"); return; }
@@ -201,9 +209,8 @@ async function performAction(action, element) {
     if (!snapshot) { toast("Aucune action à annuler.", "error"); return; }
     state.game = snapshot; saveUndo(state.undo); persist(); renderApp(); toast("Dernière action annulée."); return;
   }
-  if (action === "start-night") { mutate(createNight); return; }
+  if (action === "start-night") { mutate((current) => { createNight(current); resolveCompletedNight(current); }); return; }
   if (action === "validate-night") { await handleNightValidation(); return; }
-  if (action === "resolve-night") { mutate((current) => { resolveNight(current); setPhase(current, "night-resolution"); }); return; }
   if (action === "apply-night") { mutate((current) => { applyNightResolution(current); setPhase(current, "wake"); }); return; }
   if (action === "next-phase") { mutate(nextPhase); return; }
   if (action === "previous-phase") { mutate(previousPhase); return; }
@@ -238,11 +245,14 @@ async function handleNightValidation() {
     const reveal = state.game.settings.seerReveal === "team" ? (target.team === "wolves" ? "Camp des Loups-Garous" : "Camp du Village") : getRole(target.roleId).name;
     const accepted = await new Promise((resolve) => {
       state.modalResolver = resolve;
-      showModal("Vision de la Voyante", `<p class="text-stone-300">${escapeHtml(target.name)} appartient à :</p><p class="mt-4 rounded-xl border border-amberwood/30 bg-amberwood/10 p-5 text-center font-display text-2xl text-amber-100">${escapeHtml(reveal)}</p><button data-action="confirm-modal" class="mt-5 min-h-11 w-full rounded-xl bg-amberwood px-4 font-semibold text-forest-950">J’ai vu l’information</button>`, { persistent: true });
+      showModal("Vision de la Voyante", `<p class="text-sm text-stone-400">Information à montrer à la Voyante :</p><p class="mt-4 rounded-xl border border-amberwood/30 bg-amberwood/10 p-5 text-center font-display text-2xl text-amber-100">${escapeHtml(target.name)} : ${escapeHtml(reveal)}</p><div class="mt-4">${mjScript([{ action: "Montrez discrètement cette information à la Voyante et laissez-lui le temps de la mémoriser." }, { variants: ["Ta vision est désormais claire. Mémorise ce que tu viens de découvrir, puis referme les yeux et rendors-toi.", "Les esprits t’ont livré leur secret. Grave cette révélation dans ta mémoire, puis ferme les yeux et laisse la nuit reprendre ses droits."] }, { action: "Vérifiez que la Voyante a refermé les yeux avant de continuer." }], state.game.night - 1)}</div><button data-action="confirm-modal" class="mt-5 min-h-11 w-full rounded-xl bg-amberwood px-4 font-semibold text-forest-950">La Voyante s’est rendormie</button>`, { persistent: true });
     });
     if (!accepted) return;
   }
-  mutate((game) => validateNightAction(game, action));
+  mutate((game) => {
+    validateNightAction(game, action);
+    resolveCompletedNight(game);
+  });
 }
 
 app.addEventListener("submit", (event) => {

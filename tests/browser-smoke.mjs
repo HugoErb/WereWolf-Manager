@@ -57,7 +57,7 @@ const click = async (action) => {
 
 async function finishNight() {
   for (let guard = 0; guard < 8; guard += 1) {
-    if (await evaluate(`Boolean(document.querySelector('[data-action="resolve-night"]'))`)) break;
+    if (await evaluate(`document.body.innerText.includes('Résolution de la nuit')`)) break;
     const type = await evaluate(`document.querySelector('#cupid-first') ? 'cupid' : document.querySelector('#witch-kill') ? 'witch' : document.querySelector('#seer-result') ? 'seer' : 'wolves'`);
     if (type === "cupid") {
       await evaluate(`(() => { const a = document.querySelector('#cupid-first'), b = document.querySelector('#cupid-second'); a.value = a.options[1].value; b.value = b.options[2].value; })()`);
@@ -72,8 +72,6 @@ async function finishNight() {
       await click("confirm-modal");
     }
   }
-  await waitFor(`document.querySelector('[data-action="resolve-night"]')`);
-  await click("resolve-night");
   await waitFor(`document.body.innerText.includes('Résolution de la nuit')`);
   await click("apply-night");
   await waitFor(`document.querySelector('[data-action="next-phase"]')`);
