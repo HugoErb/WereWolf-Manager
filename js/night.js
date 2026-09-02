@@ -1,18 +1,31 @@
 import { getRole } from "./roles.js";
 import { eliminatePlayer, logEvent } from "./game.js";
 
-export function createNight(game) {
-  const roleIds = [...new Set(game.players.filter((player) => {
+function activeNightRoles(game) {
+  return [...new Set(game.players.filter((player) => {
     if (!player.alive || !getRole(player.roleId).wakesAtNight) return false;
     if (player.roleId === "witch" && player.effects.includes("life-potion-used") && player.effects.includes("death-potion-used")) return false;
     return true;
-  }).map((player) => player.roleId))];
-  const steps = roleIds
+  }).map((player) => player.roleId))]
     .map(getRole)
     .filter((role) => !role.firstNightOnly || game.night === 1)
     .sort((a, b) => a.nightOrder - b.nightOrder)
     .map((role) => ({ roleId: role.id, actionType: role.actionType, done: false }));
+}
+
+export function createNight(game) {
+  const steps = activeNightRoles(game);
   game.pendingNight = { night: game.night, steps, index: 0, actions: {}, resolved: false, applied: false };
+}
+
+export function reconcileNight(game) {
+  const night = game.pendingNight;
+  if (!night || night.resolved || night.applied) return;
+  const completed = night.steps.slice(0, night.index).filter((step) => step.done);
+  const completedRoleIds = new Set(completed.map((step) => step.roleId));
+  const remaining = activeNightRoles(game).filter((step) => !completedRoleIds.has(step.roleId));
+  night.steps = [...completed, ...remaining];
+  night.index = completed.length;
 }
 
 export const currentNightStep = (game) => game.pendingNight?.steps[game.pendingNight.index] || null;
@@ -21,6 +34,7 @@ export function validateNightAction(game, action) {
   const night = game.pendingNight;
   const step = currentNightStep(game);
   if (!step) throw new Error("Aucune action nocturne en attente.");
+  if (!game.players.some((player) => player.alive && player.roleId === step.roleId)) throw new Error(`Aucun ${getRole(step.roleId).name} vivant ne peut effectuer cette action.`);
   const aliveIds = new Set(game.players.filter((player) => player.alive).map((player) => player.id));
   if (step.actionType === "wolves") {
     if (!aliveIds.has(action.targetId)) throw new Error("Choisissez une victime vivante.");
@@ -42,6 +56,7 @@ export function validateNightAction(game, action) {
     logEvent(game, "night-cupid", `Cupidon unit ${names.join(" et ")}.`);
   } else if (step.actionType === "witch") {
     const witch = game.players.find((player) => player.alive && player.roleId === "witch");
+    if (!witch) throw new Error("Aucune Sorcière vivante ne peut effectuer cette action.");
     const hasLife = !witch.effects.includes("life-potion-used");
     const hasDeath = !witch.effects.includes("death-potion-used");
     if (action.save && !hasLife) throw new Error("La potion de vie a déjà été utilisée.");
@@ -73,12 +88,10 @@ export function resolveNight(game) {
 export function applyNightResolution(game) {
   const night = game.pendingNight;
   if (!night?.resolved || night.applied) throw new Error("La nuit n’est pas prête à être appliquée.");
-  const deaths = [];
+  game.wakeSummary = { deathIds: [], saved: night.summary.saved };
   night.summary.deathIds.forEach((id) => {
     const cause = id === night.summary.poisoned ? "potion de la Sorcière" : "attaque des Loups-Garous";
-    eliminatePlayer(game, id, cause);
-    deaths.push(id);
+    eliminatePlayer(game, id, cause, { wakeSummary: true });
   });
   night.applied = true;
-  game.wakeSummary = { deathIds: deaths, saved: night.summary.saved };
 }

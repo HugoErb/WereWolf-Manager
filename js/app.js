@@ -6,9 +6,9 @@ import {
 } from "./storage.js";
 import {
   addPlayer, applyRecommendation, assignRoles, checkVictory, compositionRoles, createGame, endGame, launchGame,
-  nextPhase, previousPhase, processDeathQueue, revivePlayer, setPhase, syncComposition, eliminatePlayer, logEvent,
+  nextPhase, previousPhase, processDeathQueue, renamePlayer, revivePlayer, setPhase, syncComposition, eliminatePlayer, logEvent,
 } from "./game.js";
-import { applyNightResolution, createNight, currentNightStep, resolveNight, validateNightAction } from "./night.js";
+import { applyNightResolution, createNight, currentNightStep, reconcileNight, resolveNight, validateNightAction } from "./night.js";
 import { resolveVote } from "./voting.js";
 import { ICONS, menuModal, mjScript, playerModal, render } from "./ui.js";
 
@@ -47,7 +47,8 @@ function toast(message, type = "info") {
 function showModal(title, content, options = {}) {
   state.lastFocused = document.activeElement;
   state.modalPersistent = Boolean(options.persistent);
-  modalRoot.innerHTML = `<div class="modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4" data-modal-backdrop><section role="dialog" aria-modal="true" aria-labelledby="modal-title" class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-forest-900 p-5 shadow-2xl sm:rounded-2xl sm:p-6"><div class="mb-5 flex items-center justify-between gap-4"><h2 id="modal-title" class="font-display text-xl font-semibold text-white">${title}</h2><button data-action="close-modal" aria-label="Fermer" class="grid h-10 w-10 place-items-center rounded-xl text-stone-400 hover:bg-white/5">${ICONS.close}</button></div>${content}</section></div>`;
+  const closeButton = options.closable === false ? "" : `<button data-action="close-modal" aria-label="Fermer" class="grid h-10 w-10 place-items-center rounded-xl text-stone-400 hover:bg-white/5">${ICONS.close}</button>`;
+  modalRoot.innerHTML = `<div class="modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4" data-modal-backdrop><section role="dialog" aria-modal="true" aria-labelledby="modal-title" class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-forest-900 p-5 shadow-2xl sm:rounded-2xl sm:p-6"><div class="mb-5 flex items-center justify-between gap-4"><h2 id="modal-title" class="font-display text-xl font-semibold text-white">${title}</h2>${closeButton}</div>${content}</section></div>`;
   hydrateIcons();
   focusFirst(modalRoot);
   if (!options.persistent) modalRoot.querySelector("[data-modal-backdrop]")?.addEventListener("click", (event) => { if (event.target === event.currentTarget) closeModal(false); });
@@ -111,14 +112,14 @@ function handleDeathQueue() {
   if (!state.game?.pendingDeaths?.length) return;
   const next = state.game.pendingDeaths[0];
   if (next.type === "death") {
-    mutate((game) => processDeathQueue(game), { undo: false, queue: false });
+    mutate((game) => { processDeathQueue(game); if (game.phase === "night") reconcileNight(game); }, { undo: false, queue: false });
     handleDeathQueue();
     return;
   }
   if (next.type === "hunter" && !modalRoot.innerHTML) {
     const hunter = state.game.players.find((player) => player.id === next.playerId);
     const targets = state.game.players.filter((player) => player.alive);
-    showModal("Dernier tir du Chasseur", `${mjScript([{ variants: ["Chasseur, dans un dernier souffle, tu peux encore faire feu. Désigne le joueur que tu souhaites emporter avec toi.", "Avant de quitter ce monde, le Chasseur rassemble ses dernières forces et saisit son arme. Chasseur, choisis celui qui tombera sous ton ultime tir."] }, { action: `Attendez que ${escapeHtml(hunter.name)} désigne sa cible, puis sélectionnez-la ci-dessous.` }], state.game.day + state.game.night - 2)}<label for="hunter-target" class="mb-1.5 mt-5 block text-sm font-medium text-stone-300">Cible désignée</label><select id="hunter-target" class="min-h-11 w-full rounded-xl border border-white/15 bg-black/20 px-3.5 py-2.5"><option value="">Choisir un joueur</option>${targets.map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("")}</select><button data-action="hunter-shot" class="mt-5 min-h-11 w-full rounded-xl bg-wolf px-4 font-semibold text-white">Appliquer le dernier tir</button>`, { persistent: true });
+    showModal("Dernier tir du Chasseur", `${mjScript([{ variants: ["Chasseur, dans un dernier souffle, tu peux encore faire feu. Désigne le joueur que tu souhaites emporter avec toi.", "Avant de quitter ce monde, le Chasseur rassemble ses dernières forces et saisit son arme. Chasseur, choisis celui qui tombera sous ton ultime tir."] }, { action: `Attendez que ${escapeHtml(hunter.name)} désigne sa cible, puis sélectionnez-la ci-dessous.` }], state.game.day + state.game.night - 2)}<label for="hunter-target" class="mb-1.5 mt-5 block text-sm font-medium text-stone-300">Cible désignée</label><select id="hunter-target" class="min-h-11 w-full rounded-xl border border-white/15 bg-black/20 px-3.5 py-2.5"><option value="">Choisir un joueur</option>${targets.map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("")}</select><button data-action="hunter-shot" class="mt-5 min-h-11 w-full rounded-xl bg-wolf px-4 font-semibold text-white">Appliquer le dernier tir</button>`, { persistent: true, closable: false });
   }
 }
 
@@ -152,12 +153,14 @@ function tickTimer(save = true) {
     const seconds = String(state.game.timer.remaining % 60).padStart(2, "0");
     element.textContent = `${minutes}:${seconds}`;
   });
-  if (save && (wasRunning || !state.game.timer.running)) persist();
+  if (save && wasRunning) persist();
 }
 setInterval(() => tickTimer(), 1000);
 
 function resolveCompletedNight(game) {
-  if (game?.phase !== "night" || !game.pendingNight || currentNightStep(game)) return false;
+  if (game?.phase !== "night" || !game.pendingNight) return false;
+  reconcileNight(game);
+  if (currentNightStep(game)) return false;
   resolveNight(game);
   setPhase(game, "night-resolution");
   return true;
@@ -179,7 +182,8 @@ async function performAction(action, element) {
     if (!saved) { toast("La sauvegarde est absente ou corrompue.", "error"); state.hasSave = false; renderApp(); return; }
     state.game = saved; state.settings = { ...state.settings, ...saved.settings };
     if (resolveCompletedNight(state.game)) persist();
-    navigate(saved.status === "setup" ? (saved.players.every((p) => p.roleId) ? "distribution" : "setup") : saved.status === "ended" ? "summary" : "game"); return;
+    navigate(saved.status === "setup" ? (saved.players.every((p) => p.roleId) ? "distribution" : "setup") : saved.status === "ended" ? "summary" : "game");
+    handleDeathQueue(); return;
   }
   if (action === "go-home") { navigate("home"); return; }
   if (action === "open-settings") { closeModal(); openSettings(); return; }
@@ -213,7 +217,7 @@ async function performAction(action, element) {
     closeModal();
     const snapshot = state.undo.pop();
     if (!snapshot) { toast("Aucune action à annuler.", "error"); return; }
-    state.game = snapshot; saveUndo(state.undo); persist(); renderApp(); toast("Dernière action annulée."); return;
+    state.game = snapshot; saveUndo(state.undo); persist(); renderApp(); handleDeathQueue(); toast("Dernière action annulée."); return;
   }
   if (action === "start-night") { mutate((current) => { createNight(current); resolveCompletedNight(current); }); return; }
   if (action === "validate-night") { await handleNightValidation(); return; }
@@ -222,10 +226,10 @@ async function performAction(action, element) {
   if (action === "previous-phase") { mutate(previousPhase); return; }
   if (action === "vote-mode") { mutate((current) => { current.vote.mode = element.dataset.mode; current.vote.ballots = {}; }, { undo: false }); return; }
   if (action === "resolve-vote") { const id = document.querySelector(game.vote.mode === "simple" ? "#simple-vote-target" : "#count-vote-target")?.value; mutate((current) => resolveVote(current, id)); return; }
-  if (action === "kill-player") { if (await confirmAction("Tuer ce joueur", "Cette mort sera ajoutée au journal et peut déclencher d’autres pouvoirs.", "Tuer") === false) return; const id = element.dataset.id; closeModal(); mutate((current) => eliminatePlayer(current, id, "décision manuelle du MJ")); return; }
-  if (action === "revive-player") { if (await confirmAction("Ressusciter ce joueur", "Cette correction sera enregistrée dans le journal.", "Ressusciter") === false) return; const id = element.dataset.id; closeModal(); mutate((current) => revivePlayer(current, id)); return; }
-  if (action === "apply-player-role") { const id = element.dataset.id; const roleId = document.querySelector("#modal-role").value; closeModal(); mutate((current) => { const player = current.players.find((p) => p.id === id); player.roleId = roleId; player.team = getRole(roleId).team; logEvent(current, "role-change", `Le rôle de ${player.name} est modifié en ${getRole(roleId).name}.`); }); return; }
-  if (action === "hunter-shot") { const targetId = document.querySelector("#hunter-target")?.value; if (!targetId) { toast("Choisissez la cible du Chasseur.", "error"); return; } closeModal(); mutate((current) => { current.pendingDeaths.shift(); eliminatePlayer(current, targetId, "tir du Chasseur"); }); return; }
+  if (action === "kill-player") { if (await confirmAction("Tuer ce joueur", "Cette mort sera ajoutée au journal et peut déclencher d’autres pouvoirs.", "Tuer") === false) return; const id = element.dataset.id; closeModal(); mutate((current) => { eliminatePlayer(current, id, "décision manuelle du MJ"); if (current.phase === "night") reconcileNight(current); }); return; }
+  if (action === "revive-player") { if (await confirmAction("Ressusciter ce joueur", "Cette correction sera enregistrée dans le journal.", "Ressusciter") === false) return; const id = element.dataset.id; closeModal(); mutate((current) => { revivePlayer(current, id); if (current.phase === "night") reconcileNight(current); }); return; }
+  if (action === "apply-player-role") { const id = element.dataset.id; const roleId = document.querySelector("#modal-role").value; closeModal(); mutate((current) => { const player = current.players.find((p) => p.id === id); player.roleId = roleId; player.team = getRole(roleId).team; logEvent(current, "role-change", `Le rôle de ${player.name} est modifié en ${getRole(roleId).name}.`); if (current.phase === "night") reconcileNight(current); }); return; }
+  if (action === "hunter-shot") { const targetId = document.querySelector("#hunter-target")?.value; if (!targetId) { toast("Choisissez la cible du Chasseur.", "error"); return; } closeModal(); mutate((current) => { const pendingShot = current.pendingDeaths.shift(); eliminatePlayer(current, targetId, "tir du Chasseur", { wakeSummary: Boolean(pendingShot?.wakeSummary) }); if (current.phase === "night") reconcileNight(current); }); return; }
   if (action === "set-timer") { mutate((current) => { const seconds = Number(element.dataset.seconds); current.timer = { duration: seconds, remaining: seconds, running: false, endsAt: null }; }, { undo: false }); return; }
   if (action === "set-custom-timer") { const minutes = Number(document.querySelector("#custom-timer")?.value); if (!Number.isFinite(minutes) || minutes < 1 || minutes > 60) { toast("Choisissez une durée entre 1 et 60 minutes.", "error"); return; } mutate((current) => { const seconds = Math.round(minutes * 60); current.timer = { duration: seconds, remaining: seconds, running: false, endsAt: null }; }, { undo: false }); return; }
   if (action === "start-timer") { mutate((current) => { current.timer.running = true; current.timer.endsAt = Date.now() + current.timer.remaining * 1000; }, { undo: false }); return; }
@@ -339,14 +343,14 @@ document.addEventListener("drop", (event) => {
 
 document.addEventListener("keydown", (event) => {
   const zone = event.target.closest?.("[data-role-dropzone]");
-  if (zone && ["Enter", " "].includes(event.key)) { event.preventDefault(); zone.click(); }
+  if (zone && event.target === zone && ["Enter", " "].includes(event.key)) { event.preventDefault(); zone.click(); }
 });
 
 document.addEventListener("change", (event) => {
   const target = event.target;
   if (target.dataset.roleCount) mutate((game) => { game.composition.werewolf = Math.max(0, Number(target.value) || 0); game.players.forEach((player) => { player.roleId = null; player.team = null; }); syncComposition(game); }, { undo: false });
   if (target.dataset.specialRole) mutate((game) => { const id = target.dataset.specialRole; game.composition.specials = target.checked ? [...new Set([...game.composition.specials, id])] : game.composition.specials.filter((roleId) => roleId !== id); game.players.forEach((player) => { player.roleId = null; player.team = null; }); syncComposition(game); }, { undo: false });
-  if (target.dataset.playerName) mutate((game) => { const player = game.players.find((p) => p.id === target.dataset.playerName); if (target.value.trim()) player.name = target.value.trim(); }, { undo: false });
+  if (target.dataset.playerName && !mutate((game) => renamePlayer(game, target.dataset.playerName, target.value), { undo: false })) renderApp();
   if (target.dataset.change === "general-notes") mutate((game) => { game.generalNotes = target.value; }, { undo: false });
   if (target.dataset.playerNotes) mutate((game) => { game.players.find((p) => p.id === target.dataset.playerNotes).notes = target.value; }, { undo: false });
   if (target.dataset.ballot) mutate((game) => { game.vote.ballots[target.dataset.ballot] = target.value || null; }, { undo: false });
@@ -355,8 +359,14 @@ document.addEventListener("change", (event) => {
     state.settings = { ...state.settings, ...settings }; saveSettings(state.settings); persist(); renderApp();
   }
   if (target.dataset.settingValue) {
-    const settings = state.game?.settings || state.settings; settings[target.dataset.settingValue] = target.dataset.settingValue === "timerDuration" ? Number(target.value) : target.value;
-    state.settings = { ...state.settings, ...settings }; saveSettings(state.settings); if (state.game) { state.game.timer.duration = settings.timerDuration; state.game.timer.remaining = settings.timerDuration; persist(); } renderApp();
+    const key = target.dataset.settingValue;
+    const settings = state.game?.settings || state.settings; settings[key] = key === "timerDuration" ? Number(target.value) : target.value;
+    state.settings = { ...state.settings, ...settings }; saveSettings(state.settings);
+    if (state.game && key === "timerDuration") {
+      state.game.timer.duration = settings.timerDuration;
+      if (!state.game.timer.running) state.game.timer.remaining = settings.timerDuration;
+    }
+    persist(); renderApp();
   }
 });
 
@@ -365,8 +375,9 @@ importInput.addEventListener("change", async () => {
   try {
     const imported = parseImport(await file.text());
     if (state.game && await confirmAction("Importer cette partie", "La partie actuellement chargée sera remplacée.", "Importer") === false) return;
-    state.game = imported; state.undo = []; persist();
+    state.game = imported; state.undo = []; resolveCompletedNight(state.game); persist();
     navigate(imported.status === "ended" ? "summary" : imported.status === "active" ? "game" : "setup");
+    handleDeathQueue();
     toast("Partie importée avec succès.");
   } catch (error) { toast(error.message, "error"); }
 });
@@ -382,5 +393,11 @@ window.addEventListener("keydown", (event) => {
   if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 });
 window.addEventListener("error", () => toast("Une erreur inattendue est survenue. Rechargez la page si elle persiste.", "error"));
+
+window.matchMedia("(min-width: 1024px)").addEventListener("change", (event) => {
+  if (!event.matches || state.panel !== "players") return;
+  state.panel = "game";
+  if (state.view === "game") renderApp();
+});
 
 renderApp();

@@ -7,6 +7,14 @@ export const PHASE_LABELS = {
   wake: "Réveil du village", discussion: "Discussion", vote: "Vote", resolution: "Résolution du vote", ended: "Partie terminée",
 };
 
+function pauseTimer(game) {
+  if (!game.timer?.running) return;
+  const remaining = game.timer.endsAt ? Math.max(0, Math.ceil((game.timer.endsAt - Date.now()) / 1000)) : game.timer.remaining;
+  game.timer.remaining = remaining;
+  game.timer.running = false;
+  game.timer.endsAt = null;
+}
+
 export function createGame(settings) {
   const now = new Date().toISOString();
   return {
@@ -26,6 +34,15 @@ export function addPlayer(game, name) {
   game.players.forEach((player) => { player.roleId = null; player.team = null; });
   game.players.push({ id: uid("player"), name: cleanName, roleId: null, team: null, alive: true, deathCause: null, deathRound: null, effects: [], notes: "", history: [] });
   syncComposition(game);
+}
+
+export function renamePlayer(game, playerId, name) {
+  const player = game.players.find((item) => item.id === playerId);
+  if (!player) throw new Error("Joueur introuvable.");
+  const cleanName = name.trim();
+  if (!cleanName) throw new Error("Saisissez un nom de joueur.");
+  if (game.players.some((item) => item.id !== playerId && item.name.toLocaleLowerCase("fr") === cleanName.toLocaleLowerCase("fr"))) throw new Error("Ce nom est déjà utilisé.");
+  player.name = cleanName;
 }
 
 export function syncComposition(game) {
@@ -76,6 +93,7 @@ export function launchGame(game) {
 export function setPhase(game, phase) {
   if (!PHASES.includes(phase) && phase !== "ended") throw new Error("Phase inconnue.");
   game.phase = phase;
+  if (!["discussion", "vote"].includes(phase)) pauseTimer(game);
   game.victoryDismissed = false;
   if (phase === "night") {
     game.night += 1;
@@ -103,6 +121,7 @@ export function previousPhase(game) {
     game.pendingNight = null;
   }
   game.phase = previous;
+  if (!["discussion", "vote"].includes(previous)) pauseTimer(game);
   logEvent(game, "phase-correction", `Retour manuel : ${PHASE_LABELS[previous]}.`);
 }
 
@@ -115,13 +134,15 @@ export function eliminatePlayer(game, playerId, cause, options = {}) {
   player.deathRound = game.day || game.night;
   player.history.push({ type: "death", cause, day: game.day, night: game.night, phase: game.phase });
   logEvent(game, "death", `${player.name} meurt (${cause}).`, options.visibility || "announcement");
+  if (options.wakeSummary && game.wakeSummary && !game.wakeSummary.deathIds.includes(playerId)) game.wakeSummary.deathIds.push(playerId);
   const consequences = [];
-  if (player.roleId === "hunter" && !options.skipTriggers) consequences.push({ type: "hunter", playerId });
+  const wakeContext = options.wakeSummary ? { wakeSummary: true } : {};
+  if (player.roleId === "hunter" && !options.skipTriggers) consequences.push({ type: "hunter", playerId, ...wakeContext });
   const relationship = game.relationships.find((link) => link.type === "lovers" && link.playerIds.includes(playerId));
   if (relationship) {
     const loverId = relationship.playerIds.find((id) => id !== playerId);
     const lover = game.players.find((item) => item.id === loverId);
-    if (lover?.alive) consequences.push({ type: "death", playerId: loverId, cause: "chagrin amoureux" });
+    if (lover?.alive) consequences.push({ type: "death", playerId: loverId, cause: "chagrin amoureux", ...wakeContext });
   }
   game.pendingDeaths.push(...consequences);
   return consequences;
@@ -137,7 +158,7 @@ export function revivePlayer(game, playerId) {
 
 export function processDeathQueue(game) {
   const next = game.pendingDeaths.shift();
-  if (next?.type === "death") eliminatePlayer(game, next.playerId, next.cause);
+  if (next?.type === "death") eliminatePlayer(game, next.playerId, next.cause, { wakeSummary: Boolean(next.wakeSummary) });
   return next;
 }
 
@@ -156,5 +177,6 @@ export function checkVictory(game) {
 
 export function endGame(game, winner) {
   game.status = "ended"; game.phase = "ended"; game.winner = winner;
+  pauseTimer(game);
   logEvent(game, "game-end", `${winner.label}. ${winner.reason}`, "announcement");
 }

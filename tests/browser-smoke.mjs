@@ -155,6 +155,11 @@ assert.equal(await evaluate(`Boolean(document.querySelector('[data-action="publi
 await call("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await delay(150);
 assert.equal(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true, "Débordement horizontal mobile");
+await click("panel-players");
+await waitFor(`document.body.innerText.includes('Tous les joueurs')`);
+await call("Emulation.setDeviceMetricsOverride", { width: 1280, height: 850, deviceScaleFactor: 1, mobile: false });
+await delay(150);
+await waitFor(`document.querySelector('[data-action="start-night"]')`);
 if (screenshotDir) {
   const shot = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
   await writeFile(`${screenshotDir}/werewolf-mobile.png`, Buffer.from(shot.data, "base64"));
@@ -168,6 +173,12 @@ assert.equal(await evaluate(`JSON.parse(localStorage.getItem('werewolf-manager.g
 await click("start-night");
 await finishNight();
 assert.equal(await evaluate(`JSON.parse(localStorage.getItem('werewolf-manager.game.v1')).game.day`), 2);
+
+await evaluate(`(() => { const key = 'werewolf-manager.game.v1'; const saved = JSON.parse(localStorage.getItem(key)); const hunter = saved.game.players.find(player => player.alive); hunter.roleId = 'hunter'; hunter.team = 'village'; hunter.alive = false; saved.game.pendingDeaths = [{ type: 'hunter', playerId: hunter.id }]; localStorage.setItem(key, JSON.stringify(saved)); location.reload(); })()`);
+await waitFor(`document.querySelector('[data-action="resume-game"]')`);
+await click("resume-game");
+await waitFor(`document.querySelector('[data-action="hunter-shot"]')`);
+assert.equal(await evaluate(`Boolean(document.querySelector('#modal-root [data-action="close-modal"]'))`), false);
 assert.deepEqual(browserErrors, [], `Erreurs navigateur : ${browserErrors.join(" | ")}`);
 
 socket.close();

@@ -4,9 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0b1712">
-  <meta name="description" content="Werewolf Manager, l’assistant du Maître du Jeu pour Loup-Garou.">
-  <title>Werewolf Manager</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c79745' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401Z'/%3E%3Cpath d='M19 3v4M21 5h-4'/%3E%3C/svg%3E">
+  <meta name="description" content="Préparez et animez vos parties de Loup-Garou avec un tableau de bord complet pour le Maître du Jeu : rôles, nuits, votes et éliminations.">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="application-name" content="Werewolf Manager">
+  <meta name="author" content="Hugo Erb">
+  <link rel="canonical" href="https://hugoerb.github.io/WereWolf-Manager/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:site_name" content="Werewolf Manager">
+  <meta property="og:title" content="Werewolf Manager – Gestion de partie Loup-Garou">
+  <meta property="og:description" content="Le tableau de bord du Maître du Jeu pour préparer les rôles, guider les nuits, gérer les votes et suivre chaque élimination.">
+  <meta property="og:url" content="https://hugoerb.github.io/WereWolf-Manager/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Werewolf Manager – Gestion de partie Loup-Garou">
+  <meta name="twitter:description" content="Préparez et animez vos parties de Loup-Garou depuis un tableau de bord conçu pour le Maître du Jeu.">
+
+  <title>Werewolf Manager – Gestion de partie Loup-Garou</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Werewolf Manager",
+      "url": "https://hugoerb.github.io/WereWolf-Manager/",
+      "description": "Tableau de bord pour préparer et animer une partie de Loup-Garou en tant que Maître du Jeu.",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Tout système disposant d’un navigateur web moderne",
+      "browserRequirements": "JavaScript requis",
+      "inLanguage": "fr-FR",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+      }
+    }
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -21,7 +57,17 @@
   <link rel="stylesheet" href="./styles/custom.css">
 </head>
 <body class="min-h-full bg-forest-950 text-parchment antialiased selection:bg-amberwood selection:text-forest-950">
-  <div id="app" class="min-h-screen"></div>
+  <div id="app" class="min-h-screen">
+    <main class="mist flex min-h-screen items-center justify-center px-5 py-12">
+      <section class="w-full max-w-lg text-center">
+        <p class="font-display text-2xl font-semibold tracking-wide text-parchment">Werewolf Manager</p>
+        <p class="mt-2 text-xs uppercase tracking-[.22em] text-moss">Maître du village</p>
+        <h1 class="mt-10 font-display text-4xl leading-tight text-white sm:text-5xl">Le village s’endort.<br><span class="text-amberwood">À vous de guider la nuit.</span></h1>
+        <p class="mx-auto mt-5 max-w-md text-base leading-relaxed text-stone-300">Le tableau de bord privé du Maître du Jeu, de la préparation jusqu’à la victoire.</p>
+        <noscript><p class="mx-auto mt-8 max-w-md rounded-xl border border-amberwood/30 bg-amberwood/10 p-4 text-amber-100">Activez JavaScript pour lancer le tableau de bord.</p></noscript>
+      </section>
+    </main>
+  </div>
   <div id="toast-region" aria-live="polite" aria-atomic="true" class="pointer-events-none fixed inset-x-4 top-4 z-[70] flex flex-col items-end gap-2"></div>
   <div id="modal-root"></div>
   <input id="import-input" type="file" accept="application/json,.json" class="sr-only" aria-hidden="true">

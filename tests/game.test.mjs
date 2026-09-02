@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_SETTINGS, exportPayload, loadGame, parseImport, saveGame } from "../js/storage.js";
+import { DEFAULT_SETTINGS, exportPayload, hasSavedGame, loadGame, parseImport, saveGame } from "../js/storage.js";
 import { recommendedComposition } from "../js/roles.js";
-import { addPlayer, applyRecommendation, assignRoles, checkVictory, compositionRoles, createGame, eliminatePlayer, launchGame, processDeathQueue } from "../js/game.js";
-import { applyNightResolution, createNight, currentNightStep, resolveNight, validateNightAction } from "../js/night.js";
+import { addPlayer, applyRecommendation, assignRoles, checkVictory, compositionRoles, createGame, eliminatePlayer, launchGame, processDeathQueue, renamePlayer, setPhase } from "../js/game.js";
+import { applyNightResolution, createNight, currentNightStep, reconcileNight, resolveNight, validateNightAction } from "../js/night.js";
 import { resolveVote, tallyVotes } from "../js/voting.js";
 
 class MemoryStorage {
@@ -82,6 +82,30 @@ test("la mort d’un amoureux entraîne celle de l’autre", () => {
   assert.equal(game.players[1].deathCause, "chagrin amoureux");
 });
 
+test("les morts en chaîne de la nuit figurent dans l’annonce du réveil", () => {
+  const game = gameWithPlayers(5);
+  game.players.forEach((player, index) => { player.roleId = index === 0 ? "werewolf" : "villager"; player.team = index === 0 ? "wolves" : "village"; });
+  game.status = "active"; game.phase = "night-resolution"; game.night = 1;
+  game.relationships.push({ type: "lovers", playerIds: [game.players[1].id, game.players[2].id] });
+  game.pendingNight = { resolved: true, applied: false, summary: { deathIds: [game.players[1].id], poisoned: null, saved: false } };
+  applyNightResolution(game);
+  processDeathQueue(game);
+  assert.deepEqual(game.wakeSummary.deathIds, [game.players[1].id, game.players[2].id]);
+});
+
+test("la liste des actions nocturnes ignore un rôle mort avant son tour", () => {
+  const game = gameWithPlayers(5);
+  const roles = ["werewolf", "seer", "witch", "villager", "villager"];
+  game.players.forEach((player, index) => { player.roleId = roles[index]; player.team = roles[index] === "werewolf" ? "wolves" : "village"; });
+  launchGame(game); createNight(game);
+  eliminatePlayer(game, game.players[2].id, "correction du MJ");
+  reconcileNight(game);
+  assert.equal(game.pendingNight.steps.some((step) => step.roleId === "witch"), false);
+  validateNightAction(game, { targetId: game.players[3].id });
+  validateNightAction(game, { targetId: game.players[4].id });
+  assert.equal(currentNightStep(game), null);
+});
+
 test("la mort du Chasseur crée une action de dernier tir", () => {
   const game = gameWithPlayers(5);
   game.players.forEach((player) => { player.roleId = "villager"; player.team = "village"; });
@@ -108,8 +132,30 @@ test("la sauvegarde versionnée se recharge et rejette un import invalide", () =
   assert.equal(loadGame().name, undefined);
   assert.equal(parseImport(JSON.stringify(exportPayload(game))).id, game.id);
   assert.equal(exportPayload(game).game.name, undefined);
+  game._victory = { team: "village" };
+  assert.equal(exportPayload(game).game._victory, undefined);
   assert.throws(() => parseImport("pas du json"), /JSON valide/);
   assert.throws(() => parseImport(JSON.stringify({ version: 99, game })), /incompatible/);
+  assert.throws(() => parseImport(JSON.stringify({ version: 1, game: { id: "incomplet", players: [], history: [], settings: {} } })), /partie valide/);
+  localStorage.setItem("werewolf-manager.game.v1", JSON.stringify({ version: 1, game: { id: "incomplet", players: [], history: [], settings: {} } }));
+  assert.equal(hasSavedGame(), false);
+});
+
+test("le renommage refuse les doublons sans tenir compte des majuscules", () => {
+  const game = gameWithPlayers(5);
+  assert.throws(() => renamePlayer(game, game.players[1].id, "joueur 1"), /déjà utilisé/);
+  renamePlayer(game, game.players[1].id, "Nouveau nom");
+  assert.equal(game.players[1].name, "Nouveau nom");
+});
+
+test("le chronomètre s’arrête en quittant les phases où il est affiché", () => {
+  const game = gameWithPlayers(5);
+  game.phase = "discussion";
+  game.timer = { duration: 180, remaining: 120, running: true, endsAt: Date.now() + 120_000 };
+  setPhase(game, "resolution");
+  assert.equal(game.timer.running, false);
+  assert.equal(game.timer.endsAt, null);
+  assert.ok(game.timer.remaining <= 120 && game.timer.remaining > 0);
 });
 
 test("un couple mixte seul survivant déclenche la victoire des Amoureux", () => {
