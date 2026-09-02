@@ -7,10 +7,10 @@ export const PHASE_LABELS = {
   wake: "Réveil du village", discussion: "Discussion", vote: "Vote", resolution: "Résolution du vote", ended: "Partie terminée",
 };
 
-export function createGame(settings, name = "Nouvelle partie") {
+export function createGame(settings) {
   const now = new Date().toISOString();
   return {
-    id: uid("game"), version: 1, name, status: "setup", phase: "preparation", day: 0, night: 0,
+    id: uid("game"), version: 1, status: "setup", phase: "preparation", day: 0, night: 0,
     players: [], composition: { werewolf: 0, villager: 0, specials: [] }, settings: { ...settings }, history: [],
     generalNotes: "", relationships: [], pendingNight: null, pendingDeaths: [], wakeSummary: null,
     vote: { mode: "simple", ballots: {}, selected: null, resolved: false },
@@ -70,7 +70,7 @@ export function launchGame(game) {
   game.phase = "night";
   game.night = 1;
   game.day = 0;
-  logEvent(game, "game-start", `La partie « ${game.name} » commence.`, "announcement");
+  logEvent(game, "game-start", "La partie commence.", "announcement");
 }
 
 export function setPhase(game, phase) {

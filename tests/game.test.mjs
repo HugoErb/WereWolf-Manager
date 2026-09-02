@@ -15,7 +15,7 @@ class MemoryStorage {
 globalThis.localStorage = new MemoryStorage();
 
 function gameWithPlayers(count = 8) {
-  const game = createGame(DEFAULT_SETTINGS, "Test", "Village test");
+  const game = createGame(DEFAULT_SETTINGS);
   for (let index = 1; index <= count; index += 1) addPlayer(game, `Joueur ${index}`);
   return game;
 }
@@ -102,9 +102,12 @@ test("le comptage détecte une égalité et permet un leader", () => {
 
 test("la sauvegarde versionnée se recharge et rejette un import invalide", () => {
   const game = gameWithPlayers(5);
+  game.name = "Ancien nom";
   saveGame(game);
   assert.equal(loadGame().id, game.id);
+  assert.equal(loadGame().name, undefined);
   assert.equal(parseImport(JSON.stringify(exportPayload(game))).id, game.id);
+  assert.equal(exportPayload(game).game.name, undefined);
   assert.throws(() => parseImport("pas du json"), /JSON valide/);
   assert.throws(() => parseImport(JSON.stringify({ version: 99, game })), /incompatible/);
 });

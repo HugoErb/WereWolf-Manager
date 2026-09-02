@@ -233,7 +233,7 @@ async function performAction(action, element) {
   if (action === "reset-timer") { mutate((current) => { current.timer.running = false; current.timer.endsAt = null; current.timer.remaining = current.timer.duration; }, { undo: false }); return; }
   if (action === "dismiss-victory") { mutate((current) => { current.victoryDismissed = true; }, { undo: false }); return; }
   if (action === "end-game") { const victory = checkVictory(game); if (!victory) return; if (await confirmAction("Terminer la partie", `${victory.label}. Cette action ouvre le récapitulatif final.`, "Terminer") === false) return; mutate((current) => endGame(current, victory)); navigate("summary"); return; }
-  if (action === "export-game") { closeModal(); const name = (game.name || "partie").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); downloadJson(exportPayload(game), `werewolf-${name || "partie"}.json`); toast("Partie exportée."); return; }
+  if (action === "export-game") { closeModal(); downloadJson(exportPayload(game), "werewolf-sauvegarde.json"); toast("Partie exportée."); return; }
   if (action === "delete-save") { if (await confirmAction("Supprimer la sauvegarde", "La partie locale sera définitivement supprimée de cet appareil.", "Supprimer") === false) return; deleteGame(); state.game = null; state.undo = []; state.hasSave = false; closeModal(); navigate("home"); return; }
   if (action === "close-modal") { closeModal(false); return; }
   if (action === "confirm-modal") { closeModal(true); return; }
@@ -347,7 +347,6 @@ document.addEventListener("change", (event) => {
   if (target.dataset.roleCount) mutate((game) => { game.composition.werewolf = Math.max(0, Number(target.value) || 0); game.players.forEach((player) => { player.roleId = null; player.team = null; }); syncComposition(game); }, { undo: false });
   if (target.dataset.specialRole) mutate((game) => { const id = target.dataset.specialRole; game.composition.specials = target.checked ? [...new Set([...game.composition.specials, id])] : game.composition.specials.filter((roleId) => roleId !== id); game.players.forEach((player) => { player.roleId = null; player.team = null; }); syncComposition(game); }, { undo: false });
   if (target.dataset.playerName) mutate((game) => { const player = game.players.find((p) => p.id === target.dataset.playerName); if (target.value.trim()) player.name = target.value.trim(); }, { undo: false });
-  if (target.dataset.change === "game-name") mutate((game) => { game.name = target.value.trim() || "Nouvelle partie"; }, { undo: false });
   if (target.dataset.change === "general-notes") mutate((game) => { game.generalNotes = target.value; }, { undo: false });
   if (target.dataset.playerNotes) mutate((game) => { game.players.find((p) => p.id === target.dataset.playerNotes).notes = target.value; }, { undo: false });
   if (target.dataset.ballot) mutate((game) => { game.vote.ballots[target.dataset.ballot] = target.value || null; }, { undo: false });
