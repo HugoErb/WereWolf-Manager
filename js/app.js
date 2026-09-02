@@ -23,9 +23,14 @@ const state = {
 };
 let dragPreviewElement = null;
 
+function hydrateIcons() {
+  window.lucide?.createIcons();
+}
+
 function renderApp() {
   if (state.game?.status === "active") state.game._victory = checkVictory(state.game);
   app.innerHTML = render(state);
+  hydrateIcons();
   app.classList.toggle("compact", Boolean((state.game?.settings || state.settings).compact));
   document.body.classList.toggle("no-animations", !(state.game?.settings || state.settings).animations);
   tickTimer(false);
@@ -42,7 +47,8 @@ function toast(message, type = "info") {
 function showModal(title, content, options = {}) {
   state.lastFocused = document.activeElement;
   state.modalPersistent = Boolean(options.persistent);
-  modalRoot.innerHTML = `<div class="modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4" data-modal-backdrop><section role="dialog" aria-modal="true" aria-labelledby="modal-title" class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-forest-900 p-5 shadow-2xl sm:rounded-2xl sm:p-6"><div class="mb-5 flex items-center justify-between gap-4"><h2 id="modal-title" class="font-display text-xl font-semibold text-white">${title}</h2><button data-action="close-modal" aria-label="Fermer" class="grid h-10 w-10 place-items-center rounded-xl text-stone-400 hover:bg-white/5">×</button></div>${content}</section></div>`;
+  modalRoot.innerHTML = `<div class="modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4" data-modal-backdrop><section role="dialog" aria-modal="true" aria-labelledby="modal-title" class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-forest-900 p-5 shadow-2xl sm:rounded-2xl sm:p-6"><div class="mb-5 flex items-center justify-between gap-4"><h2 id="modal-title" class="font-display text-xl font-semibold text-white">${title}</h2><button data-action="close-modal" aria-label="Fermer" class="grid h-10 w-10 place-items-center rounded-xl text-stone-400 hover:bg-white/5">${ICONS.close}</button></div>${content}</section></div>`;
+  hydrateIcons();
   focusFirst(modalRoot);
   if (!options.persistent) modalRoot.querySelector("[data-modal-backdrop]")?.addEventListener("click", (event) => { if (event.target === event.currentTarget) closeModal(false); });
 }

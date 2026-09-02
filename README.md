@@ -50,11 +50,11 @@ tests/browser-smoke.mjs parcours automatisé dans Chrome via son protocole dista
 
 Les mutations importantes passent par le contrôleur central : création d’un snapshot d’annulation, modification du moteur, sauvegarde, puis nouveau rendu. Les vues ne modifient jamais directement la partie.
 
-## Tailwind CSS
+## Tailwind CSS et icônes
 
-Tailwind est chargé depuis son CDN officiel et configuré directement dans `index.html`. Ce choix garde le projet sans dépendances et immédiatement publiable sur GitHub Pages. `custom.css` ne contient que le fond discret, deux animations et la gestion de la réduction des mouvements.
+Tailwind est chargé depuis son CDN officiel et configuré directement dans `index.html`. Les icônes utilisent la bibliothèque libre Lucide, chargée dans une version figée depuis jsDelivr. Ces choix gardent le projet sans étape de compilation et immédiatement publiable sur GitHub Pages. `custom.css` contient uniquement les styles complémentaires à ces bibliothèques.
 
-Une connexion est donc nécessaire au premier chargement pour récupérer Tailwind. Pour un usage intégralement hors ligne, il faut remplacer le CDN par une feuille Tailwind compilée et conserver le même chemin relatif.
+Une connexion est donc nécessaire au premier chargement pour récupérer Tailwind et Lucide. Pour un usage intégralement hors ligne, il faut héberger localement ces deux ressources.
 
 ## Stockage, import et export
 
